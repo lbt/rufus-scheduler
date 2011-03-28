@@ -1,3 +1,9 @@
+rufus-scheduler (2.0.8-2) unstable; urgency=low
+
+  * Add ruby-tzinfo to dependencies
+
+ -- David Greaves <david@dgreaves.com>  Mon, 28 Mar 2011 14:03:50 +0100
+
 rufus-scheduler (2.0.8-1) UNRELEASED; urgency=low
 
   * Initial release based on gem2deb
