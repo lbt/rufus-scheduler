@@ -14,7 +14,7 @@ XS-Ruby-Versions: all
 Package: ruby-rufus-scheduler
 Architecture: all
 XB-Ruby-Versions: ${ruby:Versions}, ruby-tzinfo (>= 0.3.23)
-Depends: ${shlibs:Depends}, ${misc:Depends}, ruby1.8 | ruby-interpreter
+Depends: ${shlibs:Depends}, ${misc:Depends}, ruby1.8 | ruby-interpreter, ruby-tzinfo (>= 0.3.23)
 # tzinfo (>= 0.3.23, runtime), rake (>= 0, development), rspec (>= 2.0, development)
 Description: job scheduler for Ruby (at, cron, in and every jobs)
  job scheduler for Ruby (at, cron, in and every jobs).
