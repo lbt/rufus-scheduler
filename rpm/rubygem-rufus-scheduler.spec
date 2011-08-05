@@ -17,8 +17,8 @@
 
 # norootforbuild
 Name:           rubygem-rufus-scheduler
-Version:        2.0.8
-Release:        0
+Version:        2.0.9
+Release:        1
 %define mod_name rufus-scheduler
 #
 Group:          Development/Languages/Ruby

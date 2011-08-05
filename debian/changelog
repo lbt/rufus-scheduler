@@ -1,3 +1,12 @@
+ruby-rufus-scheduler (2.0.9-1) unstable; urgency=low
+
+  * Upstream 2.0.9
+  * Scheduler#first_at and :discard_past => true. Thanks concept47
+  * Scheduler#cron and monthdays (sun#2 or mon#1)
+  * Scheduler#unschedule_by_tag(t)
+  
+ -- David Greaves <david@dgreaves.com>  Fri, 05 Aug 2011 14:00:52 +0000
+
 ruby-rufus-scheduler (2.0.8-5) unstable; urgency=low
 
   * Restore dependency on ruby-tzinfo
