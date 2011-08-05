@@ -1,3 +1,10 @@
+ruby-rufus-scheduler (2.0.10-1) unstable; urgency=low
+
+  * Upstream 2.0.10
+  * every and allow_overlapping now surviving exceptions. Thanks sha1dy
+
+ -- David Greaves <david@dgreaves.com>  Fri, 05 Aug 2011 14:47:55 +0000
+
 ruby-rufus-scheduler (2.0.9-1) unstable; urgency=low
 
   * Upstream 2.0.9
