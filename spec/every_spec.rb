@@ -202,29 +202,8 @@ describe "#{SCHEDULER_CLASS}#every" do
 
     @s.trigger_threads.size.should == 4
   end
-end
 
-describe Rufus::Scheduler::EveryJob do
-
-  before(:each) do
-    @s = start_scheduler
-  end
-  after(:each) do
-    stop_scheduler(@s)
-  end
-
-  it 'responds to #next_time' do
-
-    t = Time.now + 3 * 3600
-
-    job = @s.every '3h' do
-    end
-
-    job.next_time.to_i.should == t.to_i
-  end
-
-
-  it 'does not allow a job to overlap execution if set !allow_overlapping' do
+  it "doesn't allow overlapped execution if :allow_overlapping => false" do
 
     stack = []
 
@@ -238,7 +217,7 @@ describe Rufus::Scheduler::EveryJob do
     stack.size.should == 2
   end
 
-  it 'allows a job to overlap execution (backward compatibility?)' do
+  it 'allows overlapped execution by default' do
 
     stack = []
 
@@ -250,6 +229,23 @@ describe Rufus::Scheduler::EveryJob do
     sleep 5
 
     stack.size.should == 4
+  end
+
+  it 'schedules anyway when exception and :allow_overlapping => false' do
+
+    $exceptions = []
+
+    def @s.handle_exception(job, exception)
+      $exceptions << exception
+    end
+
+    @s.every '1s', :allow_overlapping => false do
+      raise 'fail'
+    end
+
+    sleep 4
+
+    $exceptions.size.should be > 1
   end
 end
 
