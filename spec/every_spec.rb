@@ -95,7 +95,7 @@ describe "#{SCHEDULER_CLASS}#every" do
 
     counter = 0
 
-    job = @s.every '1s', :first_at => Time.now + 2 do
+    @s.every '1s', :first_at => Time.now + 2 do
       counter += 1
     end
 
@@ -106,11 +106,35 @@ describe "#{SCHEDULER_CLASS}#every" do
     counter.should == 2
   end
 
+  it 'triggers for the missed schedules when :first_at is in the past' do
+
+    counter = 0
+
+    @s.every '1s', :first_at => Time.now - 2 do
+      counter += 1
+    end
+
+    wait_next_tick
+    counter.should == 3
+  end
+
+  it 'does not trigger for the missed schedules when :first_at is in the past and :discard_past => true' do
+
+    counter = 0
+
+    @s.every '1s', :first_at => Time.now - 2, :discard_past => true do
+      counter += 1
+    end
+
+    wait_next_tick
+    counter.should == 0
+  end
+
   it 'honours :first_in' do
 
     counter = 0
 
-    job = @s.every '1s', :first_in => 2 do
+    @s.every '1s', :first_in => 2 do
       counter += 1
     end
 

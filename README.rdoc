@@ -22,7 +22,7 @@ More like complements :
 
 == installation
 
-  sudo gem install rufus-scheduler --source http://gemcutter.org
+  gem install rufus-scheduler
 
 
 == usage
@@ -95,6 +95,12 @@ The timezones are the ones supported by the 'tzinfo' rubygem (http://tzinfo.ruby
 
 The timezone support was contributed by Tanzeeb Khalili.
 
+Since 2.0.9, "monthdays" are supported
+
+  scheduler.cron '0 22 * * sun#1,sun#2' do
+    # every first and second sunday of the month, at 22:00
+  end
+
 
 == scheduler.join
 
@@ -166,7 +172,7 @@ Jobs scheduled with the :blocking parameter will run in the thread of the schedu
     puts "order espresso"
   end
 
-Hence, our espresso wil come in 22 minutes instead of 21.
+Hence, our espresso will come in 22 minutes instead of 21.
 
 
 == 'every' jobs and :first_at / :first_in
@@ -190,6 +196,8 @@ The chronic gem may help (http://chronic.rubyforge.org/) :
   scheduler.every '3h', :first_at => Chronic.parse('this tuesday 5:00') do
     # do something starting this tueday
   end
+
+Note : setting a :first_at/:first_in in the past will get rufus-scheduler to trigger for all the past schedules until now. Adding :discard_past => true will prevent this.
 
 
 == self unschedule for 'cron' and 'every' jobs

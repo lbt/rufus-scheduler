@@ -2,6 +2,7 @@
 $:.unshift('.') # 1.9.2
 
 require 'rubygems'
+require 'rubygems/user_interaction' if Gem::RubyGemsVersion == '1.5.0'
 
 require 'rake'
 require 'rake/clean'
@@ -78,7 +79,7 @@ desc %{
 task :upload_rdoc => [ :clean, :rdoc ] do
 
   account = 'jmettraux@rubyforge.org'
-  webdir = "/var/www/gforge-projects/rufus"
+  webdir = '/var/www/gforge-projects/rufus'
 
   sh "rsync -azv -e ssh rdoc/#{GEMSPEC.name} #{account}:#{webdir}/"
 end

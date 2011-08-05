@@ -184,6 +184,16 @@ module Rufus::Scheduler
       @jobs.unschedule(job_id) || @cron_jobs.unschedule(job_id)
     end
 
+    # Given a tag, unschedules all the jobs that bear that tag.
+    #
+    def unschedule_by_tag(tag)
+
+      jobs = find_by_tag(tag)
+      jobs.each { |job| unschedule(job.job_id) }
+
+      jobs
+    end
+
     #--
     # MISC
     #++
@@ -297,7 +307,7 @@ module Rufus::Scheduler
 
       complain_if_blocking_and_timeout(job)
 
-      return if job.params[:discard_past] && Time.now.to_f >= job.at
+      return nil if job.params[:discard_past] && Time.now.to_f >= job.at
 
       @jobs << job
 
