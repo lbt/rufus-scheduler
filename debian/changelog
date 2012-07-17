@@ -1,3 +1,9 @@
+ruby-rufus-scheduler (2.0.17-1) unstable; urgency=low
+
+  * Upstream to 2.0.17
+
+ -- David Greaves <david@dgreaves.com>  Tue, 17 Jul 2012 23:26:55 +0100
+
 ruby-rufus-scheduler (2.0.10-1) unstable; urgency=low
 
   * Upstream 2.0.10
