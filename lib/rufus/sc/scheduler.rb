@@ -1,5 +1,5 @@
 #--
-# Copyright (c) 2006-2011, John Mettraux, jmettraux@gmail.com
+# Copyright (c) 2006-2012, John Mettraux, jmettraux@gmail.com
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -105,6 +105,8 @@ module Rufus::Scheduler
       @cron_jobs = get_queue(:cron, opts)
 
       @frequency = @options[:frequency] || 0.330
+
+      @mutexes = {}
     end
 
     # Instantiates and starts a new Rufus::Scheduler.
@@ -175,11 +177,13 @@ module Rufus::Scheduler
     end
     alias :schedule :cron
 
-    # Unschedules a job (cron or at/every/in job) given its id.
+    # Unschedules a job (cron or at/every/in job).
     #
     # Returns the job that got unscheduled.
     #
-    def unschedule(job_id)
+    def unschedule(job_or_id)
+
+      job_id = job_or_id.respond_to?(:job_id) ? job_or_id.job_id : job_or_id
 
       @jobs.unschedule(job_id) || @cron_jobs.unschedule(job_id)
     end
@@ -194,29 +198,62 @@ module Rufus::Scheduler
       jobs
     end
 
+    # Pauses a given job. If the argument is an id (String) and the
+    # corresponding job cannot be found, an ArgumentError will get raised.
+    #
+    def pause(job_or_id)
+
+      find(job_or_id).pause
+    end
+
+    # Resumes a given job. If the argument is an id (String) and the
+    # corresponding job cannot be found, an ArgumentError will get raised.
+    #
+    def resume(job_or_id)
+
+      find(job_or_id).resume
+    end
+
     #--
     # MISC
     #++
 
-    # Feel free to override this method. The default implementation simply
-    # outputs the error message to STDOUT
+    # Determines if there is #log_exception, #handle_exception or #on_exception
+    # method. If yes, hands the exception to it, else defaults to outputting
+    # details to $stderr.
     #
-    def handle_exception(job, exception)
+    def do_handle_exception(job, exception)
 
-      if self.respond_to?(:log_exception)
-        #
-        # some kind of backward compatibility
+      begin
 
-        log_exception(exception)
+        [ :log_exception, :handle_exception, :on_exception ].each do |m|
 
-      else
+          next unless self.respond_to?(m)
 
-        puts '=' * 80
-        puts "scheduler caught exception :"
-        puts exception
-        exception.backtrace.each { |l| puts l }
-        puts '=' * 80
+          if method(m).arity == 1
+            self.send(m, exception)
+          else
+            self.send(m, job, exception)
+          end
+
+          return
+            # exception was handled successfully
+        end
+
+      rescue Exception => e
+
+        $stderr.puts '*' * 80
+        $stderr.puts 'the exception handling method itself had an issue:'
+        $stderr.puts e
+        $stderr.puts *e.backtrace
+        $stderr.puts '*' * 80
       end
+
+      $stderr.puts '=' * 80
+      $stderr.puts 'scheduler caught exception:'
+      $stderr.puts exception
+      $stderr.puts *exception.backtrace
+      $stderr.puts '=' * 80
     end
 
     #--
@@ -251,14 +288,43 @@ module Rufus::Scheduler
       all_jobs.values.select { |j| j.tags.include?(tag) }
     end
 
+    # Mostly used to find a job given its id. If the argument is a job, will
+    # simply return it.
+    #
+    # If the argument is an id, and no job with that id is found, it will
+    # raise an ArgumentError.
+    #
+    def find(job_or_id)
+
+      return job_or_id if job_or_id.respond_to?(:job_id)
+
+      job = all_jobs[job_or_id]
+
+      raise ArgumentError.new(
+        "couldn't find job #{job_or_id.inspect}"
+      ) unless job
+
+      job
+    end
+
     # Returns the current list of trigger threads (threads) dedicated to
     # the execution of jobs.
     #
     def trigger_threads
 
       Thread.list.select { |t|
-        t["rufus_scheduler__trigger_thread__#{self.object_id}"] == true
+        t["rufus_scheduler__trigger_thread__#{self.object_id}"]
       }
+    end
+
+    # Returns the list of the currently running jobs (jobs that just got
+    # triggered and are executing).
+    #
+    def running_jobs
+
+      Thread.list.collect { |t|
+        t["rufus_scheduler__trigger_thread__#{self.object_id}"]
+      }.compact
     end
 
     protected
@@ -339,10 +405,13 @@ module Rufus::Scheduler
     # TODO : clarify, the blocking here blocks the whole scheduler, while
     # EmScheduler blocking triggers for the next tick. Not the same thing ...
     #
-    def trigger_job(blocking, &block)
+    def trigger_job(params, &block)
 
-      if blocking
+      if params[:blocking]
         block.call
+      elsif m = params[:mutex]
+        m = (@mutexes[m.to_s] ||= Mutex.new) unless m.is_a?(Mutex)
+        Thread.new { m.synchronize { block.call } }
       else
         Thread.new { block.call }
       end
@@ -364,7 +433,7 @@ module Rufus::Scheduler
       @thread = Thread.new do
         loop do
           sleep(@frequency)
-          self.step
+          step
         end
       end
 
@@ -471,14 +540,20 @@ module Rufus::Scheduler
     # If 'blocking' is set to true, the block will get called at the
     # 'next_tick'. Else the block will get called via 'defer' (own thread).
     #
-    def trigger_job(blocking, &block)
+    def trigger_job(params, &block)
 
-      m = blocking ? :next_tick : :defer
-        #
-        # :next_tick monopolizes the EM
-        # :defer executes its block in another thread
+      # :next_tick monopolizes the EM
+      # :defer executes its block in another thread
+      # (if I read the doc carefully...)
 
-      EM.send(m) { block.call }
+      if params[:blocking]
+        EM.next_tick { block.call }
+      elsif m = params[:mutex]
+        m = (@mutexes[m.to_s] ||= Mutex.new) unless m.is_a?(Mutex)
+        EM.defer { m.synchronize { block.call } }
+      else
+        EM.defer { block.call }
+      end
     end
   end
 

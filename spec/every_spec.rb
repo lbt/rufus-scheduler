@@ -5,7 +5,7 @@
 # Sun Mar 22 12:26:07 JST 2009
 #
 
-require File.join(File.dirname(__FILE__), 'spec_base')
+require 'spec_base'
 
 
 describe "#{SCHEDULER_CLASS}#every" do
@@ -246,6 +246,14 @@ describe "#{SCHEDULER_CLASS}#every" do
     sleep 4
 
     $exceptions.size.should be > 1
+  end
+
+  it 'raises on unknown options' do
+
+    lambda {
+      @s.every '1s', :pool => :party do
+      end
+    }.should raise_error(ArgumentError)
   end
 end
 

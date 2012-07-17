@@ -5,7 +5,7 @@
 # Sat Mar 21 20:19:30 JST 2009
 #
 
-require File.join(File.dirname(__FILE__), 'spec_base')
+require 'spec_base'
 
 
 describe "#{SCHEDULER_CLASS}#schedule_at" do
@@ -60,16 +60,30 @@ describe "#{SCHEDULER_CLASS}#schedule_at" do
     @s.jobs.should == {}
   end
 
-  it 'unschedules' do
+  it 'unschedules (job_id)' do
 
     job = @s.at Time.now + 3 * 3600 do
     end
 
-    wait_next_tick
+    sleep 0.300
 
     @s.jobs.size.should == 1
 
     @s.unschedule(job.job_id)
+
+    @s.jobs.size.should == 0
+  end
+
+  it 'unschedules (job)' do
+
+    job = @s.at Time.now + 3 * 3600 do
+    end
+
+    sleep 0.300
+
+    @s.jobs.size.should == 1
+
+    @s.unschedule(job)
 
     @s.jobs.size.should == 0
   end
@@ -98,6 +112,14 @@ describe "#{SCHEDULER_CLASS}#schedule_at" do
 
     r.size.should == 3
     r.first.class.should == Rufus::Scheduler::AtJob
+  end
+
+  it 'raises on unknown options' do
+
+    lambda {
+      @s.at Time.now + 3600, :first_at => (Time.now + 3600).to_s do
+      end
+    }.should raise_error(ArgumentError)
   end
 end
 

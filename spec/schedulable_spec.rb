@@ -5,7 +5,7 @@
 # Tue May  5 14:47:16 JST 2009
 #
 
-require File.join(File.dirname(__FILE__), '/spec_base')
+require 'spec_base'
 
 
 describe Rufus::Scheduler::Schedulable do
@@ -74,6 +74,24 @@ describe Rufus::Scheduler::Schedulable do
     sleep 1.4
 
     j.value.class.should == Rufus::Scheduler::InJob
+  end
+
+  class MySchedulable
+    def self.job
+      @@job
+    end
+    def self.call(job)
+      @@job = job
+    end
+  end
+
+  it 'accepts schedulable classes as second param' do
+
+    @s.in '1s', MySchedulable
+
+    sleep 1.4
+
+    MySchedulable.job.class.should == Rufus::Scheduler::InJob
   end
 end
 

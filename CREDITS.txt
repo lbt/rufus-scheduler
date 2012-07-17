@@ -4,6 +4,8 @@
 
 == Contributors
 
+- André Luis Leal Cardoso Junior (https://github.com/andrehjr) 1.9.3 patch
+- Anthony Lewis (https://github.com/anthonylewis) cron lines and 09 issue
 - concept47 (https://github.com/concept47) every and :discard_past
 - Chris Kampemeier (http://github.com/chrisk) rspec 2.0 refinements
 - Tanzeeb Khalili (http://github.com/tanzeeb) cron and timezones
@@ -14,6 +16,10 @@
 
 == Feedback
 
+- Tero Tilus - raises on unsupported/unknown options
+- Louis Coilliot - Scheduler#running_jobs
+- Henrique G. Testa - pause/resume concept
+- Sam Gibson - https://github.com/samfoo - exception handling hardening
 - sha1dy - https://github.com/sha1dy - every and overlapping exception issue
 - Defusal - unschedule_by_tag
 - pickerel - https://github.com/pickerel

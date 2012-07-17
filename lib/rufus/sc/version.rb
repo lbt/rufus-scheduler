@@ -1,5 +1,5 @@
 #--
-# Copyright (c) 2006-2011, John Mettraux, jmettraux@gmail.com
+# Copyright (c) 2006-2012, John Mettraux, jmettraux@gmail.com
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@
 module Rufus
 module Scheduler
 
-  VERSION = '2.0.10'
+  VERSION = '2.0.17'
 end
 end
 

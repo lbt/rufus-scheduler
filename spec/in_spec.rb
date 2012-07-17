@@ -5,7 +5,7 @@
 # Sat Mar 21 17:36:36 JST 2009
 #
 
-require File.join(File.dirname(__FILE__), 'spec_base')
+require 'spec_base'
 
 
 describe "#{SCHEDULER_CLASS}#in" do
@@ -137,6 +137,14 @@ describe "#{SCHEDULER_CLASS}#in" do
 
     @s.find_by_tag('spec').size.should == 1
     @s.find_by_tag('spec').first.job_id.should == job.job_id
+  end
+
+  it 'raises on unknown options' do
+
+    lambda {
+      @s.in '2d', :first_at => (Time.now + 3600).to_s do
+      end
+    }.should raise_error(ArgumentError)
   end
 end
 

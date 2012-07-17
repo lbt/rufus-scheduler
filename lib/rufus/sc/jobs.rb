@@ -1,5 +1,5 @@
 #--
-# Copyright (c) 2006-2011, John Mettraux, jmettraux@gmail.com
+# Copyright (c) 2006-2012, John Mettraux, jmettraux@gmail.com
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +30,7 @@ module Scheduler
   # The base class for all types of jobs.
   #
   class Job
-
+      
     # A reference to the scheduler owning this job
     #
     attr_accessor :scheduler
@@ -76,7 +76,10 @@ module Scheduler
       @params = params
       @block = block || params[:schedulable]
 
+      raise_on_unknown_params
+
       @running = false
+      @paused = false
 
       raise ArgumentError.new(
         'no block or :schedulable passed, nothing to schedule'
@@ -91,12 +94,47 @@ module Scheduler
 
     # Returns true if this job is currently running (in the middle of #trigger)
     #
+    # Note : paused? is not related to running?
+    #
     def running
 
       @running
     end
 
     alias running? running
+
+    # Returns true if this job is paused, false else.
+    #
+    # A paused job is still scheduled, but does not trigger.
+    #
+    # Note : paused? is not related to running?
+    #
+    def paused?
+
+      @paused
+    end
+
+    # Pauses this job (sets the paused flag to true).
+    #
+    # Note that it will not pause the execution of a block currently 'running'.
+    # Future triggering of the job will not occur until #resume is called.
+    #
+    # Note too that, during the pause time, the schedule kept the same. Calling
+    # #resume will not force old triggers in.
+    #
+    def pause
+
+      @paused = true
+    end
+
+    # Resumes this job (sets the paused flag to false).
+    #
+    # This job will trigger again.
+    #
+    def resume
+
+      @paused = false
+    end
 
     # Returns the list of tags attached to the job.
     #
@@ -125,6 +163,8 @@ module Scheduler
     #
     def trigger(t=Time.now)
 
+      return if @paused
+
       @last = t
       job_thread = nil
       to_job = nil
@@ -133,27 +173,34 @@ module Scheduler
 
       @running = true
 
-      @scheduler.send(:trigger_job, @params[:blocking]) do
+      @scheduler.send(:trigger_job, @params) do
         #
         # Note that #trigger_job is protected, hence the #send
         # (Only jobs know about this method of the scheduler)
 
         job_thread = Thread.current
+
         job_thread[
           "rufus_scheduler__trigger_thread__#{@scheduler.object_id}"
-        ] = true
+        ] = self
+
         @last_job_thread = job_thread
 
         begin
 
           trigger_block
 
+          job_thread[
+            "rufus_scheduler__trigger_thread__#{@scheduler.object_id}"
+          ] = nil
+
           job_thread = nil
+
           to_job.unschedule if to_job
 
         rescue Exception => e
 
-          @scheduler.handle_exception(self, e)
+          @scheduler.do_handle_exception(self, e)
         end
 
         @running = false
@@ -190,6 +237,39 @@ module Scheduler
 
       @scheduler.unschedule(self.job_id)
     end
+
+    protected
+
+    def known_params
+
+      [ :allow_overlapping,
+        :blocking,
+        :discard_past,
+        :job_id,
+        :mutex,
+        :schedulable,
+        :tags,
+        :timeout ]
+    end
+
+    def self.known_params(*args)
+
+      define_method :known_params do
+        super() + args
+      end
+    end
+
+    def raise_on_unknown_params
+
+      rem = @params.keys - known_params
+
+      raise(
+        ArgumentError,
+        "unknown option#{rem.size > 1 ? 's' : '' }: " +
+        "#{rem.map(&:inspect).join(', ')}",
+        caller[3..-1]
+      ) if rem.any?
+    end
   end
 
   #
@@ -201,6 +281,8 @@ module Scheduler
     #
     attr_reader :at
 
+    # Last time it triggered
+    #
     attr_reader :last
 
     def determine_at
@@ -221,12 +303,15 @@ module Scheduler
   #
   class InJob < SimpleJob
 
+    known_params :parent
+
     # If this InJob is a timeout job, parent points to the job that
     # is subject to the timeout.
     #
     attr_reader :parent
 
     def initialize(scheduler, t, params)
+
       @parent = params[:parent]
       super
     end
@@ -253,6 +338,8 @@ module Scheduler
   #
   class EveryJob < SimpleJob
 
+    known_params :first_in, :first_at
+
     # The frequency, in seconds, of this EveryJob
     #
     attr_reader :frequency
@@ -278,8 +365,11 @@ module Scheduler
 
     def determine_frequency
 
-      @frequency = @t.is_a?(Fixnum) || @t.is_a?(Float) ?
-        @t : Rufus.parse_duration_string(@t)
+      @frequency = if @t.is_a?(Fixnum) || @t.is_a?(Float)
+        @t
+      else
+        Rufus.parse_duration_string(@t)
+      end
     end
 
     def determine_at
@@ -352,6 +442,8 @@ module Scheduler
     end
 
     def trigger_if_matches(time)
+
+      return if @paused
 
       trigger(time) if @cron_line.matches?(time)
     end

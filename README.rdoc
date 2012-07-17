@@ -124,6 +124,10 @@ at then end of it will make the current (main) thread join the scheduler and pre
 
 You shouldn't be exposed to this issue when using EventMachine, since while running EM, your runtime won't exit.
 
+=== important note about #join
+
+DO NOT CALL this #join method if you're running rufus-scheduler from Rails or Sinatra or any application that's already some kind of 'daemon'. It's not necessary! #join is meant for small standalone scripts.
+
 
 == block parameters
 
@@ -174,25 +178,82 @@ Jobs scheduled with the :blocking parameter will run in the thread of the schedu
 
 Hence, our espresso will come in 22 minutes instead of 21.
 
+Warning, 'cron' behaves a bit differently than 'in' and 'at', if the scheduler is blocked working on a task, it may skip crons (while ins and ats get scheduled after).
+
+  scheduler.cron '0 16 * * * *' do
+    puts "four o'clock tea"
+  end
+
+If at 4pm the scheduler is in a blocking task, there will be no four o'clock tea.
+
+
+== :mutex => 'that_mutex'
+
+:blocking is nice but it is blocking the whole scheduler. What about something more fine-grained ? And also something that can be used with in, at, every and cron ?
+
+  scheduler.in '20m', :mutex => 'that_mutex' do
+    puts "order ristretto"
+    sleep 2 * 60
+    puts "ah, that was delicious"
+  end
+  scheduler.in '21m' :mutex => 'that_mutex' do
+    puts "order espresso"
+  end
+
+the "order espresso" will only get triggered once the ristretto has been consumed. Rufus-scheduler, will create a 'that_mutex' mutex and keep track of it. Don't go on passing too many different mutex names, rufus-scheduler will keep track of each of them (they won't get garbage collected).
+
+It's OK to use a mutex directly:
+
+  m = Mutex.new
+  # ...
+  scheduler.cron  '0 18 * * *', :mutex => m do
+    # ...
+  end
+  scheduler.in '21m' :mutex => m do
+    # ...
+  end
+
+It can be handy for even more fine-grained control:
+
+  m = Mutex.new
+  # ...
+  scheduler.cron  '0 18 * * *', :mutex => m do
+    # ...
+  end
+  scheduler.in '21m' do
+    # non-critical
+    m.synchronize do
+      # critical
+    end
+    # non-critical
+  end
+
 
 == :allow_overlapping => false
 
-By default, every and cron jobs will "overlap" :
+By default, every and cron jobs will "overlap":
 
   scheduler.every '3s' do
-    4.times do
-      puts "hello!"
+    4.times do |i|
+      puts "hello #{i}"
       sleep 1
     end
   end
 
-This every job, will have overlaps. To prevent that :
+You mind end up with something that looks like
+
+  hello 0
+  hello 1
+  hello 2
+  hello 3
+  hello 3
+  hello 4
+  ...
+
+This every job, will have overlaps. To prevent that:
 
   scheduler.every '3s', :allow_overlapping => false do
-    4.times do
-      puts "hello!"
-      sleep 1
-    end
+    # ...
   end
 
 
@@ -236,6 +297,56 @@ Note : setting a :first_at/:first_in in the past will get rufus-scheduler to tri
   end
 
 In this example, the 'every' job will unschedule itself when the crop is ready.
+
+
+== #running?
+
+  job = scheduler.every '3d' do
+    # ...
+  end
+
+  # ...
+
+  p job.running?
+
+Job#running? will return true when the job got triggered and is actually performing.
+
+Please note, that #running? is not related to the #paused? which is detailed in the next section.
+
+
+== #pause, #resume and #paused?
+
+Jobs, as well as the scheduler itself have a pair of #pause and #resume methods.
+
+  job = scheduler.every '2h' do
+    # ...
+  end
+
+  # ...
+
+  job.pause # the job will be scheduled but won't trigger
+
+  # ...
+
+  puts job.paused?
+
+Pausing / resuming a job doesn't affect the scheduling of a job, it merely "silences" it, its block won't get executed. Calling resume will not reset the schedule of the job. If you schedule a job to trigger every 10 minutes at 10am and pause it from 1020 to 1025, it's next triggering time will be 1030 approximately.
+
+One can pause an "at" or "in" job. If it's still paused at trigger time, it will simply become a dud.
+
+As said, the scheduler has a #pause(job_or_job_id) and a #resume(job_or_job_id) pair of methods:
+
+  scheduler.pause(job)
+  scheduler.pause(job_id)
+  scheduler.resume(job)
+  scheduler.resume(job_id)
+
+
+== Scheduler#running_jobs
+
+One can get a list of the jobs just triggered (actually running) by doing
+
+  jobs = scheduler.running_jobs
 
 
 == schedulables
@@ -347,6 +458,17 @@ It's easy to customize that behaviour :
     puts "job #{job.job_id} caught exception '#{exception}'"
   end
 
+These are OK too:
+
+  def scheduler.on_exception(job, exception)
+    puts "job #{job.job_id} caught exception '#{exception}'"
+  end
+
+  # or
+
+  def scheduler.on_exception(exception)
+    puts "caught exception '#{exception}'"
+
 For backward compatibility, overriding #log_exception is still OK :
 
   def scheduler.log_exception(exception)
@@ -398,8 +520,7 @@ https://github.com/jmettraux/rufus-scheduler/issues/issue/10
 == tested with
 
 * 1.8.7-p249
-* 1.9.1-p378
-* 1.9.2-p0
+* 1.9.2-p290
 * jruby-1.5.1
 
 on Mac OS X (Snow Leopard).

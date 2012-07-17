@@ -5,7 +5,7 @@
 # Sun Mar 22 19:59:12 JST 2009
 #
 
-require File.join(File.dirname(__FILE__), 'spec_base')
+require 'spec_base'
 
 
 describe "#{SCHEDULER_CLASS}#cron" do
@@ -37,7 +37,7 @@ describe "#{SCHEDULER_CLASS}#cron" do
     seconds.uniq.size.should == seconds.size
   end
 
-  it 'unschedules' do
+  it 'unschedules (self)' do
 
     second = nil
 
@@ -52,6 +52,29 @@ describe "#{SCHEDULER_CLASS}#cron" do
     second.should_not == nil
 
     job.unschedule
+
+    after = second
+
+    sleep 2
+
+    second.should == after
+  end
+
+  it 'unschedules (job)' do
+
+    second = nil
+
+    job = @s.cron '* * * * * *'  do |job|
+      second = job.last.sec
+    end
+
+    second.should == nil
+
+    sleep 2
+
+    second.should_not == nil
+
+    @s.unschedule(job)
 
     after = second
 
@@ -98,6 +121,14 @@ describe "#{SCHEDULER_CLASS}#cron" do
 
     @s.jobs.size.should == 0
     stack.should == %w[ ok ok ok done ]
+  end
+
+  it 'raises on unknown options' do
+
+    lambda {
+      @s.cron '* * * * *', :pool => :party do
+      end
+    }.should raise_error(ArgumentError)
   end
 end
 
